@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>抽籤輪盤</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Arial', 'Microsoft JhengHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background-color: rgba(255, 255, 255, 0.98);
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 550px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 25px;
+            font-size: 32px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .wheel-container {
+            position: relative;
+            display: inline-block;
+            margin: 30px auto;
+            width: min(420px, 90vw);
+            height: min(420px, 90vw);
+        }
+        
+        canvas {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 24px;
+            }
+            
+            .wheel-container {
+                width: min(350px, 90vw);
+                height: min(350px, 90vw);
+            }
+            
+            button {
+                padding: 12px 24px;
+                font-size: 16px;
+            }
+            
+            #result {
+                font-size: 20px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .container {
+                padding: 15px;
+            }
+            
+            h1 {
+                font-size: 20px;
+            }
+            
+            .wheel-container {
+                width: min(280px, 90vw);
+                height: min(280px, 90vw);
+            }
+            
+            button {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+            
+            #result {
+                font-size: 18px;
+            }
+            
+            .stat-badge {
+                font-size: 12px;
+                padding: 4px 8px;
+            }
+        }
+        
+        .pointer {
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 25px solid transparent;
+            border-right: 25px solid transparent;
+            border-top: 50px solid #ff3b30;
+            z-index: 10;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+        }
+        
+        .pointer-base {
+            position: absolute;
+            top: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 20px;
+            background: #c0392b;
+            border-radius: 50%;
+            z-index: 11;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        #result {
+            font-size: 26px;
+            font-weight: bold;
+            margin: 25px 0;
+            min-height: 50px;
+            color: #e74c3c;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        button {
+            padding: 14px 32px;
+            margin: 10px;
+            border: none;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+        
+        button:active {
+            transform: translateY(-1px);
+        }
+        
+        button:disabled {
+            background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        a {
+            display: inline-block;
+            margin: 15px 0;
+            color: #667eea;
+            text-decoration: none;
+            font-size: 16px;
+            font-weight: 600;
+            transition: color 0.3s;
+        }
+        
+        a:hover {
+            color: #764ba2;
+            text-decoration: underline;
+        }
+        
+        .page {
+            display: none;
+        }
+        
+        .active {
+            display: block;
+        }
+        
+        #editPanel, #historyPanel {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 12px;
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .input-group {
+            display: flex;
+            margin-bottom: 25px;
+            gap: 10px;
+        }
+        
+        input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .add-btn {
+            border-radius: 8px;
+            margin: 0;
+            padding: 12px 20px;
+        }
+        
+        .list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px;
+            border-bottom: 1px solid #e8e8e8;
+            background: white;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            transition: transform 0.2s;
+        }
+        
+        .list-item:hover {
+            transform: translateX(5px);
+        }
+        
+        .delete-btn {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+        
+        .delete-btn:hover {
+            box-shadow: 0 4px 12px rgba(238, 90, 111, 0.4);
+        }
+        
+        .spinning {
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .footer {
+            margin-top: 30px;
+            color: white;
+            text-align: center;
+            font-size: 14px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+        
+        .empty-state {
+            color: #7f8c8d;
+            padding: 30px;
+            font-style: italic;
+        }
+        
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px;
+            border-bottom: 1px solid #e8e8e8;
+            background: white;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+        
+        .clear-history {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+            margin-top: 15px;
+        }
+        
+        .clear-history:hover {
+            box-shadow: 0 4px 12px rgba(230, 126, 34, 0.4);
+        }
+        
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            gap: 10px;
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            background: #e8e8e8;
+            border-radius: 8px;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+        
+        .tab:hover {
+            background: #d0d0d0;
+        }
+        
+        .tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .highlight {
+            animation: highlight 2s ease;
+        }
+        
+        @keyframes highlight {
+            0%, 100% { background-color: transparent; }
+            50% { background-color: #ffeaa7; }
+        }
+        
+        .result-section {
+            margin: 25px 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #ffeaa7 0%, #ffdd59 100%);
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(255, 221, 89, 0.3);
+        }
+        
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            background: #f0f;
+            position: absolute;
+            animation: confetti-fall 3s linear forwards;
+        }
+        
+        @keyframes confetti-fall {
+            to {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+        
+        .stat-badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 輪盤頁面 -->
+        <div id="wheelPage" class="page active">
+            <h1>🎡 抽籤輪盤</h1>
+            <div class="wheel-container">
+                <div class="pointer"></div>
+                <div class="pointer-base"></div>
+                <canvas id="wheel" width="420" height="420"></canvas>
+            </div>
+            <div class="result-section">
+                <div id="result">準備開始抽籤...</div>
+            </div>
+            <button id="spinBtn">🎲 開始抽籤</button>
+            <div style="margin-top: 15px;">
+                <span class="stat-badge">📋 項目數: <span id="itemCount">0</span></span>
+                <span class="stat-badge">🎯 已抽: <span id="historyCount">0</span></span>
+            </div>
+            <a href="#" id="editLink">⚙️ 編輯名單與記錄</a>
+        </div>
+        
+        <!-- 編輯頁面 -->
+        <div id="editPage" class="page">
+            <h1>⚙️ 設定管理</h1>
+            <a href="#" id="backLink">⬅️ 返回輪盤</a>
+            
+            <div class="tabs">
+                <div class="tab active" data-tab="edit">📝 編輯名單</div>
+                <div class="tab" data-tab="history">📊 抽籤記錄</div>
+            </div>
+            
+            <div id="editPanel" class="tab-content active">
+                <div class="input-group">
+                    <input type="text" id="newItem" placeholder="輸入新項目名稱">
+                    <button class="add-btn" id="addBtn">➕ 新增</button>
+                </div>
+                
+                <h3 style="margin-bottom: 15px;">目前名單</h3>
+                <div id="list">
+                    <div class="empty-state">目前沒有項目，請新增項目</div>
+                </div>
+            </div>
+            
+            <div id="historyPanel" class="tab-content">
+                <h3 style="margin-bottom: 15px;">抽籤歷史記錄</h3>
+                <div id="historyList">
+                    <div class="empty-state">還沒有抽籤記錄</div>
+                </div>
+                <button class="clear-history" id="clearHistoryBtn">🗑️ 清除歷史記錄</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p>✨ 抽籤輪盤應用 © 2024</p>
+    </div>
+
+    <script>
+        const wheelPage = document.getElementById('wheelPage');
+        const editPage = document.getElementById('editPage');
+        const editLink = document.getElementById('editLink');
+        const backLink = document.getElementById('backLink');
+        const spinBtn = document.getElementById('spinBtn');
+        const canvas = document.getElementById('wheel');
+        const ctx = canvas.getContext('2d');
+        const resultDiv = document.getElementById('result');
+        const newItemInput = document.getElementById('newItem');
+        const addBtn = document.getElementById('addBtn');
+        const listDiv = document.getElementById('list');
+        const historyList = document.getElementById('historyList');
+        const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+        const itemCount = document.getElementById('itemCount');
+        const historyCountEl = document.getElementById('historyCount');
+        
+        let items = JSON.parse(localStorage.getItem("wheelItems") || '["Alice", "Bob", "Charlie", "Diana", "Eve", "Frank"]');
+        let history = JSON.parse(localStorage.getItem("wheelHistory") || '[]');
+        let angle = 0;
+        let isSpinning = false;
+        
+        function updateStats() {
+            itemCount.textContent = items.length;
+            historyCountEl.textContent = history.length;
+        }
+        
+        editLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            wheelPage.classList.remove('active');
+            editPage.classList.add('active');
+            renderEditList();
+            renderHistory();
+        });
+        
+        backLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            editPage.classList.remove('active');
+            wheelPage.classList.add('active');
+            drawWheel();
+            updateStats();
+        });
+        
+        tabs.forEach(tab => {
+            tab.addEventListener('click', function() {
+                const tabId = this.getAttribute('data-tab');
+                tabs.forEach(t => t.classList.remove('active'));
+                tabContents.forEach(c => c.classList.remove('active'));
+                this.classList.add('active');
+                document.getElementById(`${tabId}Panel`).classList.add('active');
+            });
+        });
+        
+        function drawWheel() {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = Math.min(centerX, centerY) - 15;
+            const len = items.length;
+            
+            if (len === 0) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#ecf0f1';
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                ctx.font = 'bold 20px Arial';
+                ctx.fillStyle = '#7f8c8d';
+                ctx.textAlign = 'center';
+                ctx.fillText('請先添加項目', centerX, centerY - 15);
+                ctx.font = '16px Arial';
+                ctx.fillText('點擊下方「編輯名單」', centerX, centerY + 15);
+                return;
+            }
+            
+            const arc = (2 * Math.PI) / len;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            for(let i = 0; i < len; i++) {
+                const startAngle = angle + i * arc;
+                const endAngle = angle + (i + 1) * arc;
+                
+                ctx.beginPath();
+                const hue = (i * 360 / len) % 360;
+                ctx.fillStyle = `hsl(${hue}, 75%, 65%)`;
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+                ctx.fill();
+                
+                ctx.beginPath();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 3;
+                ctx.moveTo(centerX, centerY);
+                ctx.lineTo(
+                    centerX + Math.cos(startAngle) * radius,
+                    centerY + Math.sin(startAngle) * radius
+                );
+                ctx.stroke();
+                
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(startAngle + arc / 2);
+                ctx.textAlign = "right";
+                ctx.font = "bold 18px Arial";
+                ctx.fillStyle = "#000";
+                ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
+                ctx.shadowBlur = 3;
+                ctx.fillText(items[i], radius - 30, 6);
+                ctx.restore();
+            }
+            
+            ctx.beginPath();
+            ctx.fillStyle = '#fff';
+            ctx.arc(centerX, centerY, 15, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.strokeStyle = '#ccc';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+        
+        function spin() {
+            if (isSpinning || items.length === 0) return;
+            
+            isSpinning = true;
+            spinBtn.classList.add('spinning');
+            spinBtn.disabled = true;
+            resultDiv.textContent = '🎪 轉動中...';
+            resultDiv.style.color = '#667eea';
+            
+            const len = items.length;
+            const arc = (2 * Math.PI) / len;
+            
+            // 隨機旋轉角度
+            const totalSpins = 5 + Math.random() * 2;
+            const randomAngle = Math.random() * 2 * Math.PI;
+            const spinAngle = totalSpins * 2 * Math.PI + randomAngle;
+            const targetAngle = angle + spinAngle;
+            
+            let start = null;
+            const duration = 4000;
+            const startAngle = angle;
+            
+            function animate(timestamp) {
+                if (!start) start = timestamp;
+                const elapsed = timestamp - start;
+                const progress = Math.min(elapsed / duration, 1);
+                const ease = 1 - Math.pow(1 - progress, 3);
+                angle = startAngle + (targetAngle - startAngle) * ease;
+                drawWheel();
+                
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    angle = targetAngle;
+                    drawWheel();
+                    
+                    // 計算箭頭指向的項目
+                    // 箭頭在 -PI/2，需要找出哪個扇形在這個位置
+                    const pointerAngle = -Math.PI / 2;
+                    // 標準化當前角度到 0-2PI
+                    let normalizedAngle = angle % (2 * Math.PI);
+                    if (normalizedAngle < 0) normalizedAngle += 2 * Math.PI;
+                    
+                    // 計算指針相對於輪盤的角度
+                    let relativeAngle = pointerAngle - normalizedAngle;
+                    if (relativeAngle < 0) relativeAngle += 2 * Math.PI;
+                    
+                    // 找出這個角度對應的項目
+                    const targetIndex = Math.floor(relativeAngle / arc) % len;
+                    
+                    const result = items[targetIndex];
+                    resultDiv.textContent = `🎉 恭喜抽中：${result}`;
+                    resultDiv.style.color = '#e74c3c';
+                    addToHistory(result);
+                    isSpinning = false;
+                    spinBtn.classList.remove('spinning');
+                    spinBtn.disabled = false;
+                    celebrate();
+                    updateStats();
+                }
+            }
+            
+            requestAnimationFrame(animate);
+        }
+        
+        function addToHistory(result) {
+            const timestamp = new Date().toLocaleString('zh-TW', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            history.unshift({ result, timestamp });
+            if (history.length > 50) history = history.slice(0, 50);
+            localStorage.setItem("wheelHistory", JSON.stringify(history));
+        }
+        
+        function renderHistory() {
+            historyList.innerHTML = '';
+            if (history.length === 0) {
+                historyList.innerHTML = '<div class="empty-state">還沒有抽籤記錄</div>';
+                return;
+            }
+            
+            history.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'history-item';
+                div.innerHTML = `
+                    <span><strong>#${index + 1}</strong> ${item.result}</span>
+                    <small style="color: #7f8c8d;">${item.timestamp}</small>
+                `;
+                historyList.appendChild(div);
+            });
+        }
+        
+        clearHistoryBtn.addEventListener('click', function() {
+            if (confirm('確定要清除所有抽籤記錄嗎？')) {
+                history = [];
+                localStorage.setItem("wheelHistory", JSON.stringify(history));
+                renderHistory();
+                updateStats();
+            }
+        });
+        
+        function celebrate() {
+            resultDiv.style.transform = 'scale(1.3)';
+            setTimeout(() => resultDiv.style.transform = 'scale(1)', 400);
+            resultDiv.classList.add('highlight');
+            setTimeout(() => resultDiv.classList.remove('highlight'), 2000);
+        }
+        
+        function renderEditList() {
+            listDiv.innerHTML = '';
+            if (items.length === 0) {
+                listDiv.innerHTML = '<div class="empty-state">目前沒有項目，請新增項目</div>';
+                return;
+            }
+            
+            items.forEach((item, i) => {
+                const div = document.createElement('div');
+                div.className = 'list-item';
+                div.innerHTML = `
+                    <span><strong>${i + 1}.</strong> ${item}</span>
+                    <button class="delete-btn" data-index="${i}">🗑️ 刪除</button>
+                `;
+                listDiv.appendChild(div);
+            });
+            
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const index = parseInt(this.getAttribute('data-index'));
+                    if (confirm(`確定要刪除「${items[index]}」嗎？`)) {
+                        items.splice(index, 1);
+                        saveItems();
+                        renderEditList();
+                    }
+                });
+            });
+        }
+        
+        function addItem() {
+            const value = newItemInput.value.trim();
+            if(!value) {
+                alert('請輸入項目名稱');
+                return;
+            }
+            if(items.includes(value)) {
+                alert('此項目已存在！');
+                return;
+            }
+            items.push(value);
+            newItemInput.value = '';
+            saveItems();
+            renderEditList();
+        }
+        
+        function saveItems() {
+            localStorage.setItem("wheelItems", JSON.stringify(items));
+        }
+        
+        spinBtn.addEventListener('click', spin);
+        addBtn.addEventListener('click', addItem);
+        newItemInput.addEventListener('keypress', e => {
+            if(e.key === 'Enter') addItem();
+        });
+        
+        drawWheel();
+        updateStats();
+    </script>
+</body>
+</html>
